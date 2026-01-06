@@ -1287,8 +1287,38 @@ def validate_body(path: Path, body: str) -> Tuple[List[str], List[str]]:
                 break
 
         # Backslashes forbidden
-        if "\\scripts\\" in line:
+        if "\\scripts\\" in line or "\\\\" in line:
             errors.append(f"[body] Line {i}: uses backslashes in path - use forward slashes")
+
+    # === TIME-SENSITIVE INFORMATION ===
+    # Check for date-specific logic that will become stale
+    time_patterns = [
+        (r'\b(before|after|until|since)\s+20\d{2}\b', "date-specific logic"),
+        (r'\bas of\s+20\d{2}\b', "date-specific reference"),
+        (r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}\b', "specific date"),
+        (r'\bQ[1-4]\s+20\d{2}\b', "quarter reference"),
+        (r'\bdeprecated\s+(in|since)\s+v?\d', "version deprecation note"),
+    ]
+    for pattern, desc in time_patterns:
+        matches = list(re.finditer(pattern, body, re.IGNORECASE))
+        for m in matches:
+            warnings.append(f"[body] Time-sensitive information found: '{m.group()}' ({desc}) - may become stale")
+
+    # === SCRIPT QUALITY CHECKS ===
+    # Check embedded scripts for error handling
+    code_blocks = re.findall(r'```(?:bash|sh|python|py)?\n(.*?)```', body, re.DOTALL | re.IGNORECASE)
+    for i, block in enumerate(code_blocks):
+        # Check for error handling in bash scripts
+        if 'set -e' not in block and '|| ' not in block and 'if [' not in block:
+            if len(block.strip().splitlines()) > 5:  # Only warn for non-trivial scripts
+                if re.search(r'\b(rm|mv|cp|curl|wget|pip|npm)\b', block):
+                    warnings.append(f"[scripts] Code block {i+1}: Consider adding error handling (set -e or || exit)")
+
+        # Check for unexplained magic numbers (voodoo constants)
+        magic_numbers = re.findall(r'(?<![.\d])\b(?:(?:[2-9]\d{2,})|(?:1\d{3,}))\b(?![.\d])', block)
+        for num in magic_numbers[:3]:  # Limit warnings
+            if not re.search(rf'#.*{num}', block):  # No comment explaining it
+                warnings.append(f"[scripts] Code block {i+1}: Magic number '{num}' - add comment explaining why")
 
     # === VOICE CHECKS ===
 
