@@ -4,11 +4,12 @@ description: |
   Creates ADHD-friendly visual organizational tools using Mermaid diagrams
   optimized for neurodivergent thinking patterns. Auto-detects overwhelm,
   provides compassionate task breakdowns with realistic time estimates.
+  Use when creating visual task breakdowns, decision trees, or organizational
+  diagrams for neurodivergent users or accessibility-focused projects.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
+version: 3.1.1
+author: Jack Reis <hello@jack.digital>
 license: MIT
-metadata:
-  version: 3.1.1
-  author: Jack Reis
 ---
 
 ## Mode System (v3.1.1)
