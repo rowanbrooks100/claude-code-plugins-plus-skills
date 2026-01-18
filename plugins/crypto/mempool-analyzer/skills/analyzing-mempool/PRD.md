@@ -60,5 +60,12 @@ Currently, mempool analysis requires running full nodes, subscribing to expensiv
 
 - Automated MEV execution (analysis only)
 - Private mempool access (public mempool only)
-- Cross-chain mempool monitoring (Ethereum focus)
 - Transaction submission or bundling
+
+## Supported Chains
+
+- Ethereum (primary)
+- Polygon
+- Arbitrum
+- Optimism
+- Base

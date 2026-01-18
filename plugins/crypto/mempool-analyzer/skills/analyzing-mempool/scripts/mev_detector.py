@@ -9,9 +9,17 @@ Version: 1.0.0
 License: MIT
 """
 
+import os
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-from tx_decoder import TransactionDecoder, SwapInfo
+
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+from tx_decoder import TransactionDecoder
 
 
 @dataclass
@@ -40,14 +48,78 @@ class PendingSwap:
 class MEVDetector:
     """Detect MEV opportunities in pending transactions."""
 
-    def __init__(self, verbose: bool = False):
-        """Initialize MEV detector."""
+    # Default thresholds (can be overridden via config)
+    DEFAULT_MIN_SWAP_VALUE_USD = 10000  # $10k minimum swap
+    DEFAULT_MIN_PROFIT_USD = 100  # $100 minimum profit
+
+    def __init__(
+        self,
+        verbose: bool = False,
+        min_swap_value_usd: Optional[float] = None,
+        min_profit_usd: Optional[float] = None,
+        config_path: Optional[str] = None,
+    ):
+        """Initialize MEV detector.
+
+        Args:
+            verbose: Enable verbose output
+            min_swap_value_usd: Minimum swap value for detection (overrides config)
+            min_profit_usd: Minimum profit for detection (overrides config)
+            config_path: Path to settings.yaml config file
+        """
         self.verbose = verbose
         self.decoder = TransactionDecoder(verbose=verbose)
 
-        # Minimum thresholds for detection
-        self.min_swap_value_usd = 10000  # $10k minimum swap
-        self.min_profit_usd = 100  # $100 minimum profit
+        # Load config if available
+        config = self._load_config(config_path)
+
+        # Set thresholds with priority: explicit arg > config > default
+        config_mev = config.get("mev", {}) if config else {}
+        self.min_swap_value_usd = (
+            min_swap_value_usd
+            if min_swap_value_usd is not None
+            else config_mev.get("min_swap_value_usd", self.DEFAULT_MIN_SWAP_VALUE_USD)
+        )
+        self.min_profit_usd = (
+            min_profit_usd
+            if min_profit_usd is not None
+            else config_mev.get("min_profit_usd", self.DEFAULT_MIN_PROFIT_USD)
+        )
+
+    def _load_config(self, config_path: Optional[str] = None) -> Optional[Dict]:
+        """Load configuration from YAML file.
+
+        Args:
+            config_path: Explicit path to config, or None to use defaults
+
+        Returns:
+            Config dict or None if not found/loaded
+        """
+        if not HAS_YAML:
+            return None
+
+        # Search paths for config
+        search_paths = []
+        if config_path:
+            search_paths.append(config_path)
+
+        # Default locations
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        search_paths.extend([
+            os.path.join(script_dir, "..", "config", "settings.yaml"),
+            os.path.expanduser("~/.mempool_analyzer.yaml"),
+        ])
+
+        for path in search_paths:
+            if os.path.exists(path):
+                try:
+                    with open(path) as f:
+                        return yaml.safe_load(f)
+                except Exception as e:
+                    if self.verbose:
+                        print(f"Warning: Could not load config from {path}: {e}")
+
+        return None
 
     def detect_pending_swaps(
         self,

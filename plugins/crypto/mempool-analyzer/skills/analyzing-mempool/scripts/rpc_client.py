@@ -9,10 +9,9 @@ Version: 1.0.0
 License: MIT
 """
 
-import json
 import os
-import time
-from typing import Dict, Any, List, Optional, Callable
+import sys
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 try:
@@ -107,25 +106,32 @@ class RPCClient:
 
         return result.get("result")
 
-    def get_pending_transactions(self, limit: int = 100) -> List[PendingTransaction]:
+    def get_pending_transactions(self, limit: int = 100, allow_mock: bool = False) -> List[PendingTransaction]:
         """Get pending transactions from mempool.
 
-        Note: Not all nodes support txpool_content. Falls back to mock data.
+        Note: Not all nodes support txpool_content.
 
         Args:
             limit: Maximum transactions to return
+            allow_mock: If True, return mock data when RPC fails (for demo/testing)
 
         Returns:
             List of pending transactions
+
+        Raises:
+            RuntimeError: If no RPC method succeeds and allow_mock is False
         """
+        errors = []
+
         try:
             # Try txpool_content (Geth nodes)
             result = self._rpc_call("txpool_content")
             if result:
                 return self._parse_txpool_content(result, limit)
         except Exception as e:
+            errors.append(f"txpool_content: {e}")
             if self.verbose:
-                print(f"txpool_content not available: {e}")
+                print(f"txpool_content not available: {e}", file=sys.stderr)
 
         try:
             # Try eth_pendingTransactions (some nodes)
@@ -133,11 +139,22 @@ class RPCClient:
             if result:
                 return self._parse_pending_transactions(result[:limit])
         except Exception as e:
+            errors.append(f"eth_pendingTransactions: {e}")
             if self.verbose:
-                print(f"eth_pendingTransactions not available: {e}")
+                print(f"eth_pendingTransactions not available: {e}", file=sys.stderr)
 
-        # Return mock data for demo
-        return self._get_mock_pending_transactions(limit)
+        # If allow_mock is True (demo mode), return mock data with warning
+        if allow_mock:
+            print("WARNING: Using mock data - could not fetch real mempool data", file=sys.stderr)
+            return self._get_mock_pending_transactions(limit)
+
+        # Otherwise raise an exception
+        raise RuntimeError(
+            f"Could not fetch pending transactions from RPC. "
+            f"Both 'txpool_content' and 'eth_pendingTransactions' failed.\n"
+            f"Errors: {'; '.join(errors)}\n"
+            f"Hint: Use --demo flag to use mock data for testing."
+        )
 
     def _parse_txpool_content(self, content: Dict, limit: int) -> List[PendingTransaction]:
         """Parse txpool_content response."""
@@ -225,12 +242,13 @@ class RPCClient:
             # Estimate priority fee
             priority_fee = max(gas_price - base_fee, 1 * 10**9)
 
-            # Get pending tx count
+            # Get pending tx count (optional - not all nodes support txpool_status)
             pending_count = 0
             try:
                 txpool_status = self._rpc_call("txpool_status")
                 pending_count = int(txpool_status.get("pending", "0x0"), 16)
             except Exception:
+                # txpool_status not supported by this node - use 0 as fallback
                 pass
 
             return GasInfo(
@@ -263,6 +281,7 @@ class RPCClient:
         try:
             return self._rpc_call("eth_getTransactionByHash", [tx_hash])
         except Exception:
+            # Transaction not found or RPC error - return None
             return None
 
     def get_block_number(self) -> int:

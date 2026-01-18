@@ -11,7 +11,10 @@ License: MIT
 
 import json
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tx_decoder import TransactionDecoder
 
 
 def format_gwei(wei: int) -> str:
@@ -49,12 +52,17 @@ def format_address(address: str, length: int = 12) -> str:
     return f"{address[:half]}...{address[-half:]}"
 
 
-def format_pending_tx_table(transactions: List[Any], eth_price: float = 3000.0) -> str:
+def format_pending_tx_table(
+    transactions: List[Any],
+    eth_price: float = 3000.0,
+    decoder: Optional["TransactionDecoder"] = None,
+) -> str:
     """Format pending transactions as table.
 
     Args:
         transactions: List of PendingTransaction objects
         eth_price: Current ETH price for USD conversion
+        decoder: Optional TransactionDecoder instance (created if not provided)
 
     Returns:
         Formatted table string
@@ -70,8 +78,10 @@ def format_pending_tx_table(transactions: List[Any], eth_price: float = 3000.0) 
         "-" * 100,
     ]
 
-    from tx_decoder import TransactionDecoder
-    decoder = TransactionDecoder()
+    # Create decoder only if not provided
+    if decoder is None:
+        from tx_decoder import TransactionDecoder
+        decoder = TransactionDecoder()
 
     for tx in transactions[:50]:
         tx_hash = format_address(tx.hash, 16)
@@ -190,11 +200,15 @@ def format_json(data: Any) -> str:
         return json.dumps(data, indent=2, default=str)
 
 
-def format_stream_alert(tx: Any) -> str:
+def format_stream_alert(
+    tx: Any,
+    decoder: Optional["TransactionDecoder"] = None,
+) -> str:
     """Format single transaction for stream output.
 
     Args:
         tx: Transaction object
+        decoder: Optional TransactionDecoder instance (created if not provided)
 
     Returns:
         Single-line alert string
@@ -203,8 +217,10 @@ def format_stream_alert(tx: Any) -> str:
     tx_hash = format_address(tx.hash, 12)
     gas_price = tx.gas_price / 10**9
 
-    from tx_decoder import TransactionDecoder
-    decoder = TransactionDecoder()
+    # Create decoder only if not provided
+    if decoder is None:
+        from tx_decoder import TransactionDecoder
+        decoder = TransactionDecoder()
     decoded = decoder.decode_input(tx.input_data, tx.to_address)
 
     if tx.value > 0:

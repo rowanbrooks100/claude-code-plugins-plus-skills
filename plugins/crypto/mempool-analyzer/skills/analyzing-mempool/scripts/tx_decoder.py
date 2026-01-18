@@ -9,7 +9,7 @@ Version: 1.0.0
 License: MIT
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
 
@@ -219,19 +219,24 @@ class TransactionDecoder:
         decoded = self.decode_input(input_data, to_address)
         return decoded.method_type
 
-    def estimate_usd_value(
+    def estimate_attached_eth_usd_value(
         self,
         tx: Dict,
         eth_price: float = 3000.0
     ) -> float:
-        """Estimate transaction USD value (simplified).
+        """Estimate USD value of ETH attached to transaction (msg.value).
+
+        Note: This only calculates the USD value of ETH sent with the transaction.
+        For token swaps, the actual value is in the tokens being exchanged,
+        not the attached ETH (which is often zero). Use this for ETH transfers
+        or transactions that include ETH payment.
 
         Args:
-            tx: Transaction dict
+            tx: Transaction dict with 'value' field (in wei)
             eth_price: Current ETH price in USD
 
         Returns:
-            Estimated USD value
+            USD value of attached ETH (not the full transaction value for swaps)
         """
         value_wei = tx.get("value", 0)
         if isinstance(value_wei, str):
@@ -239,6 +244,9 @@ class TransactionDecoder:
 
         value_eth = value_wei / 10**18
         return value_eth * eth_price
+
+    # Backward compatibility alias
+    estimate_usd_value = estimate_attached_eth_usd_value
 
 
 def main():

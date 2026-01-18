@@ -19,7 +19,7 @@ Usage:
 import argparse
 import sys
 
-from rpc_client import RPCClient, GasInfo
+from rpc_client import RPCClient
 from tx_decoder import TransactionDecoder
 from gas_analyzer import GasAnalyzer
 from mev_detector import MEVDetector
@@ -28,7 +28,6 @@ from formatters import (
     format_pending_swaps_table,
     format_mempool_summary,
     format_json,
-    format_stream_alert,
 )
 
 
@@ -43,7 +42,7 @@ def cmd_pending(args):
         verbose=args.verbose,
     )
 
-    pending = client.get_pending_transactions(limit=args.limit)
+    pending = client.get_pending_transactions(limit=args.limit, allow_mock=args.demo)
 
     if args.format == "json":
         print(format_json(pending))
@@ -64,7 +63,7 @@ def cmd_gas(args):
     gas_info = client.get_gas_price()
 
     # Get pending transactions for distribution analysis
-    pending = client.get_pending_transactions(limit=200)
+    pending = client.get_pending_transactions(limit=200, allow_mock=args.demo)
     distribution = analyzer.analyze_pending_gas(pending, base_fee=gas_info.base_fee)
 
     if args.format == "json":
@@ -87,7 +86,7 @@ def cmd_swaps(args):
     )
     detector = MEVDetector(verbose=args.verbose)
 
-    pending = client.get_pending_transactions(limit=args.limit)
+    pending = client.get_pending_transactions(limit=args.limit, allow_mock=args.demo)
     swaps = detector.detect_pending_swaps(pending, eth_price=args.eth_price)
 
     if args.format == "json":
@@ -105,7 +104,7 @@ def cmd_mev(args):
     )
     detector = MEVDetector(verbose=args.verbose)
 
-    pending = client.get_pending_transactions(limit=args.limit)
+    pending = client.get_pending_transactions(limit=args.limit, allow_mock=args.demo)
     results = detector.detect_all_opportunities(pending, eth_price=args.eth_price)
 
     if args.format == "json":
@@ -135,7 +134,7 @@ def cmd_summary(args):
 
     # Gather data
     gas_info = client.get_gas_price()
-    pending = client.get_pending_transactions(limit=200)
+    pending = client.get_pending_transactions(limit=200, allow_mock=args.demo)
     swaps = detector.detect_pending_swaps(pending, eth_price=args.eth_price)
     results = detector.detect_all_opportunities(pending, eth_price=args.eth_price)
 
@@ -176,7 +175,7 @@ def cmd_watch(args):
     print(f"\nWatching for pending transactions to: {contract}")
     print("=" * 60)
 
-    pending = client.get_pending_transactions(limit=args.limit)
+    pending = client.get_pending_transactions(limit=args.limit, allow_mock=args.demo)
 
     matching = [
         tx for tx in pending
@@ -216,9 +215,9 @@ def cmd_status(args):
     try:
         block = client.get_block_number()
         print(f"Current Block: {block:,}")
-        print("Connection: ✓ OK")
+        print("Connection: OK")
     except Exception as e:
-        print(f"Connection: ✗ Error - {e}")
+        print(f"Connection: Error - {e}")
 
     gas_info = client.get_gas_price()
     print(f"\nGas Price: {gas_info.gas_price / 10**9:.1f} gwei")
@@ -240,6 +239,7 @@ Examples:
   %(prog)s summary                       Overall mempool summary
   %(prog)s watch 0x7a250d...             Watch contract for pending txs
   %(prog)s status                        Check connection status
+  %(prog)s --demo pending                Use mock data for testing
         """
     )
 
@@ -252,6 +252,8 @@ Examples:
                         help="Blockchain network")
     parser.add_argument("--eth-price", type=float, default=DEFAULT_ETH_PRICE,
                         help=f"ETH price for USD conversion (default: {DEFAULT_ETH_PRICE})")
+    parser.add_argument("--demo", action="store_true",
+                        help="Use mock data when RPC fails (for testing/demo)")
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
