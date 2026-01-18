@@ -13,11 +13,11 @@ import argparse
 import json
 import sys
 from decimal import Decimal
-from typing import List, Optional
+from typing import List
 
 # Local imports
 from bridge_fetcher import BridgeFetcher, BridgeInfo, TVLData
-from protocol_adapters import get_adapter, get_all_adapters, FeeEstimate
+from protocol_adapters import get_all_adapters, FeeEstimate
 from tx_tracker import TxTracker
 from formatters import (
     format_bridges_table,

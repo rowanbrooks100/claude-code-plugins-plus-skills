@@ -12,12 +12,14 @@ License: MIT
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 
 try:
     import requests
 except ImportError:
     requests = None
+
+from config_loader import get_api_base_url
 
 
 @dataclass
@@ -87,8 +89,6 @@ class ProtocolAdapter(ABC):
 class WormholeAdapter(ProtocolAdapter):
     """Wormhole bridge adapter."""
 
-    API_BASE = "https://api.wormholescan.io/api/v1"
-
     CHAIN_IDS = {
         "ethereum": 2,
         "solana": 1,
@@ -142,7 +142,8 @@ class WormholeAdapter(ProtocolAdapter):
             return None
 
         try:
-            url = f"{self.API_BASE}/vaas/{tx_hash}"
+            api_base = get_api_base_url("wormhole")
+            url = f"{api_base}/vaas/{tx_hash}"
             response = requests.get(url, timeout=30)
 
             if response.status_code == 404:
@@ -171,14 +172,12 @@ class WormholeAdapter(ProtocolAdapter):
                 timestamp=data.get("timestamp"),
             )
 
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError):
             return None
 
 
 class LayerZeroAdapter(ProtocolAdapter):
     """LayerZero bridge adapter."""
-
-    API_BASE = "https://scan.layerzero.network/api"
 
     CHAIN_IDS = {
         "ethereum": 101,
@@ -231,7 +230,8 @@ class LayerZeroAdapter(ProtocolAdapter):
             return None
 
         try:
-            url = f"{self.API_BASE}/message/tx/{tx_hash}"
+            api_base = get_api_base_url("layerzero")
+            url = f"{api_base}/message/tx/{tx_hash}"
             response = requests.get(url, timeout=30)
 
             if response.status_code == 404:
@@ -260,7 +260,7 @@ class LayerZeroAdapter(ProtocolAdapter):
                 timestamp=data.get("created"),
             )
 
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError):
             return None
 
 
@@ -325,8 +325,6 @@ class StargateAdapter(ProtocolAdapter):
 class AcrossAdapter(ProtocolAdapter):
     """Across bridge adapter."""
 
-    API_BASE = "https://across.to/api"
-
     CHAIN_IDS = {
         "ethereum": 1,
         "optimism": 10,
@@ -376,7 +374,8 @@ class AcrossAdapter(ProtocolAdapter):
             return None
 
         try:
-            url = f"{self.API_BASE}/deposit/status"
+            api_base = get_api_base_url("across")
+            url = f"{api_base}/deposit/status"
             params = {"depositTxHash": tx_hash}
             response = requests.get(url, params=params, timeout=30)
 
@@ -407,7 +406,7 @@ class AcrossAdapter(ProtocolAdapter):
                 dest_tx_hash=data.get("fillTxHash"),
             )
 
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError):
             return None
 
 

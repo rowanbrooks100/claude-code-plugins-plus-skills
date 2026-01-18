@@ -9,9 +9,6 @@ Version: 1.0.0
 License: MIT
 """
 
-import os
-import time
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -23,21 +20,9 @@ except ImportError:
 from protocol_adapters import (
     TxStatus,
     get_adapter,
-    get_all_adapters,
     ADAPTERS,
 )
-
-
-# Chain RPC endpoints (public)
-CHAIN_RPCS = {
-    "ethereum": "https://eth.llamarpc.com",
-    "bsc": "https://bsc-dataseed1.binance.org",
-    "polygon": "https://polygon-rpc.com",
-    "arbitrum": "https://arb1.arbitrum.io/rpc",
-    "optimism": "https://mainnet.optimism.io",
-    "base": "https://mainnet.base.org",
-    "avalanche": "https://api.avax.network/ext/bc/C/rpc",
-}
+from config_loader import get_chain_rpc_url
 
 
 class TxTracker:
@@ -70,10 +55,8 @@ class TxTracker:
         Returns:
             RPC result
         """
-        rpc_url = os.environ.get(
-            f"{chain.upper()}_RPC_URL",
-            CHAIN_RPCS.get(chain)
-        )
+        # Config loader checks environment variable first, then settings.yaml
+        rpc_url = get_chain_rpc_url(chain)
 
         if not rpc_url:
             raise ValueError(f"No RPC URL for chain: {chain}")
@@ -141,7 +124,7 @@ class TxTracker:
 
             return {"found": False, "status": "not_found"}
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             if self.verbose:
                 print(f"Error verifying tx: {e}")
             return {"found": False, "status": "error", "error": str(e)}

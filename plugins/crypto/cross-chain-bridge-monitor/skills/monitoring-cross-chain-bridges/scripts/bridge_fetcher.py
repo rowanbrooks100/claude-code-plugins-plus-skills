@@ -9,17 +9,17 @@ Version: 1.0.0
 License: MIT
 """
 
-import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from decimal import Decimal
 
 try:
     import requests
 except ImportError:
     requests = None
+
+from config_loader import get_api_base_url
 
 
 @dataclass
@@ -101,7 +101,8 @@ class BridgeFetcher:
 
     def _api_call(self, endpoint: str) -> Any:
         """Make API call to DefiLlama."""
-        url = f"{DEFILLAMA_BASE}{endpoint}"
+        base_url = get_api_base_url("defillama")
+        url = f"{base_url}{endpoint}"
 
         if self.verbose:
             print(f"API: {url}")
@@ -212,7 +213,7 @@ class BridgeFetcher:
             self._set_cached(cache_key, result)
             return result
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             if self.verbose:
                 print(f"Error fetching TVL for {bridge_id}: {e}")
             return None
@@ -255,7 +256,7 @@ class BridgeFetcher:
             self._set_cached(cache_key, result)
             return result
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             if self.verbose:
                 print(f"Error fetching volume for {chain}: {e}")
             return None
@@ -290,7 +291,7 @@ class BridgeFetcher:
 
             return volumes
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             if self.verbose:
                 print(f"Error fetching volume history for {bridge_id}: {e}")
             return []

@@ -11,7 +11,7 @@ License: MIT
 
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Optional
 from decimal import Decimal
 
 from bridge_fetcher import BridgeInfo, TVLData, ChainVolume, BridgeVolume
